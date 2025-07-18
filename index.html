@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Roboto', Helvetica, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+        #game-container {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: clamp(14px, 4vw, 16px);
+            width: 100%;
+            max-width: 400px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', Helvetica, sans-serif;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: clamp(14px, 4vw, 16px);
+            margin: 5px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            touch-action: manipulation;
+            font-family: 'Roboto', Helvetica, sans-serif;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #hint {
+            color: #555;
+            font-style: italic;
+            margin-top: 10px;
+            font-size: clamp(12px, 3.5vw, 14px);
+            user-select: none;
+            font-family: 'Roboto', Helvetica, sans-serif;
+            line-height: 1.5;
+        }
+        #completion {
+            font-size: clamp(14px, 4vw, 18px);
+            font-weight: bold;
+            margin-top: 10px;
+            font-family: 'Roboto', Helvetica, sans-serif;
+        }
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        @keyframes firework {
+            0% {
+                transform: translate(0, 0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty));
+                opacity: 0;
+            }
+        }
+        @media (max-width: 600px) {
+            #game-container {
+                padding: 15px;
+            }
+            button {
+                padding: 8px 16px;
+                font-size: clamp(12px, 3.5vw, 14px);
+            }
+            input[type="text"] {
+                font-size: clamp(12px, 3.5vw, 14px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script>
+        // Danh sách cụm từ
+        const phrases = [
+            { english: "Every morning", vietnamese: "Mỗi sáng" },
+            { english: "Nam starts his day", vietnamese: "Nam bắt đầu ngày mới" },
+            { english: "with a familiar routine", vietnamese: "với một thói quen quen thuộc" },
+            { english: "He sits at the kitchen table", vietnamese: "Cậu ngồi tại bàn bếp" },
+            { english: "enjoying a warm bowl of porridge", vietnamese: "thưởng thức một bát cháo nóng hổi" },
+            { english: "for breakfast", vietnamese: "cho bữa sáng" },
+            { english: "After eating", vietnamese: "Sau khi ăn" },
+            { english: "he slings his backpack over his shoulder", vietnamese: "cậu khoác ba lô lên vai" },
+            { english: "steps out of the house", vietnamese: "bước ra khỏi nhà" },
+            { english: "and walks down the familiar path", vietnamese: "và đi bộ trên con đường quen thuộc" },
+            { english: "to the bus stop", vietnamese: "đến trạm xe buýt" },
+            { english: "At the bus stop", vietnamese: "Tại trạm xe buýt" },
+            { english: "he waits patiently", vietnamese: "cậu kiên nhẫn chờ" },
+            { english: "for five minutes", vietnamese: "năm phút" },
+            { english: "watching people pass by", vietnamese: "nhìn những người qua lại" },
+            { english: "When the familiar yellow bus arrives", vietnamese: "Khi chiếc xe buýt màu vàng quen thuộc đến" },
+            { english: "Nam steps aboard", vietnamese: "Nam bước lên" },
+            { english: "finds a seat near the window", vietnamese: "tìm một chỗ ngồi gần cửa sổ" },
+            { english: "and lets his mind wander", vietnamese: "và thả hồn" },
+            { english: "as he gazes at the passing scenery", vietnamese: "theo những khung cảnh lướt qua" },
+            { english: "As his school comes into view", vietnamese: "Khi trường học hiện ra trong tầm mắt" },
+            { english: "he stands", vietnamese: "cậu đứng dậy" },
+            { english: "smiles", vietnamese: "mỉm cười" },
+            { english: "thanks the bus driver", vietnamese: "cảm ơn tài xế" },
+            { english: "and steps off", vietnamese: "và bước xuống xe" },
+            { english: "ready for the day ahead", vietnamese: "sẵn sàng cho ngày mới" },
+            { english: "At school", vietnamese: "Ở trường" },
+            { english: "Nam meets Ms. Lan", vietnamese: "Nam gặp cô Lan" },
+            { english: "his third-grade teacher", vietnamese: "giáo viên dạy lớp ba của mình" },
+            { english: "Ms. Lan greets her students", vietnamese: "Cô Lan chào học sinh" },
+            { english: "with a bright smile", vietnamese: "bằng một nụ cười rạng rỡ" },
+            { english: "every day", vietnamese: "mỗi ngày" },
+            { english: "She takes the time", vietnamese: "Cô dành thời gian" },
+            { english: "to ask how each student is doing", vietnamese: "hỏi han từng học sinh" },
+            { english: "earning their love and admiration", vietnamese: "khiến bọn trẻ yêu quý và ngưỡng mộ cô" },
+            { english: "Though her job requires immense dedication", vietnamese: "Dù công việc của cô đòi hỏi sự tận tâm lớn lao" },
+            { english: "from preparing lessons", vietnamese: "từ chuẩn bị bài giảng" },
+            { english: "to caring for her students", vietnamese: "đến chăm sóc học sinh" },
+            { english: "her paycheck does not reflect her hard work", vietnamese: "lương của cô không phản ánh sự nỗ lực đó" },
+            { english: "Nam often thinks", vietnamese: "Nam thường nghĩ" },
+            { english: "teachers like Ms. Lan deserve much better pay", vietnamese: "những giáo viên như cô Lan xứng đáng được trả lương cao hơn" },
+            { english: "for their tireless efforts", vietnamese: "vì những nỗ lực không ngừng của họ" },
+            { english: "Nam is a diligent student", vietnamese: "Nam là một học sinh chăm chỉ" },
+            { english: "who values his grades above all else", vietnamese: "luôn coi trọng điểm số hơn tất cả" },
+            { english: "He studies everywhere", vietnamese: "Cậu học mọi nơi" },
+            { english: "at the library", vietnamese: "ở thư viện" },
+            { english: "at restaurants", vietnamese: "ở quán ăn" },
+            { english: "even at parties with friends", vietnamese: "thậm chí cả khi dự tiệc cùng bạn bè" },
+            { english: "His friends tease him", vietnamese: "Bạn bè trêu cậu" },
+            { english: "calling him a bookworm", vietnamese: "gọi cậu là mọt sách" },
+            { english: "but Nam does not mind", vietnamese: "nhưng Nam không bận tâm" },
+            { english: "To him", vietnamese: "Với cậu" },
+            { english: "the string of A grades on his report card", vietnamese: "chuỗi điểm xuất sắc trên bảng điểm" },
+            { english: "is worth every moment of effort", vietnamese: "đáng giá từng khoảnh khắc nỗ lực" },
+            { english: "One day", vietnamese: "Một ngày nọ" },
+            { english: "heading to the library", vietnamese: "khi đến thư viện" },
+            { english: "Nam carefully packs his backpack", vietnamese: "Nam cẩn thận chuẩn bị ba lô" },
+            { english: "a science textbook", vietnamese: "sách giáo khoa môn khoa học" },
+            { english: "pencils", vietnamese: "bút chì" },
+            { english: "pens", vietnamese: "bút mực" },
+            { english: "an eraser", vietnamese: "một cục tẩy" },
+            { english: "a notebook", vietnamese: "một quyển sổ tay" },
+            { english: "and a snack", vietnamese: "và một gói bánh" },
+            { english: "in case he gets hungry", vietnamese: "phòng khi đói" },
+            { english: "He is ready", vietnamese: "Cậu sẵn sàng" },
+            { english: "for a serious study session", vietnamese: "cho một buổi học tập nghiêm túc" },
+            { english: "At the library", vietnamese: "Tại thư viện" },
+            { english: "the atmosphere buzzes", vietnamese: "không khí nhộn nhịp" },
+            { english: "with students cramming for final exams", vietnamese: "với những sinh viên đang ôn thi cuối kỳ" },
+            { english: "Nam circles around", vietnamese: "Nam đi vài vòng" },
+            { english: "before finding an empty seat", vietnamese: "trước khi tìm được một chỗ ngồi trống" },
+            { english: "He settles in", vietnamese: "Cậu ngồi xuống" },
+            { english: "pulls out his book", vietnamese: "lấy sách ra" },
+            { english: "pen", vietnamese: "bút" },
+            { english: "and highlighter", vietnamese: "và bút đánh dấu" },
+            { english: "and dives into his studies", vietnamese: "rồi tập trung vào việc học" },
+            { english: "marking key sections with care", vietnamese: "cẩn thận tô màu những đoạn quan trọng" },
+            { english: "Nearby", vietnamese: "Gần đó" },
+            { english: "a girl named Linh", vietnamese: "một cô gái tên Linh" },
+            { english: "browses the library shelves", vietnamese: "lướt qua các kệ sách" },
+            { english: "She pulls out a book", vietnamese: "Cô rút ra một cuốn sách" },
+            { english: "that catches her eye", vietnamese: "thu hút sự chú ý" },
+            { english: "and flips to the first page", vietnamese: "và lật đến trang đầu tiên" },
+            { english: "A chuckle escapes her lips", vietnamese: "Một tiếng cười bật ra từ môi cô" },
+            { english: "the story is hilarious", vietnamese: "câu chuyện thật hài hước" },
+            { english: "Delighted", vietnamese: "Vui mừng" },
+            { english: "she heads to the checkout desk", vietnamese: "cô đi đến quầy mượn" },
+            { english: "hands her library card to the librarian", vietnamese: "đưa thẻ thư viện cho thủ thư" },
+            { english: "and receives her card and book back", vietnamese: "và nhận lại thẻ cùng cuốn sách" },
+            { english: "with a smile", vietnamese: "với một nụ cười" },
+            { english: "After hours of studying", vietnamese: "Sau vài giờ học" },
+            { english: "Nam takes a break", vietnamese: "Nam nghỉ giải lao" },
+            { english: "He opens his snack", vietnamese: "Cậu mở gói bánh" },
+            { english: "munches thoughtfully", vietnamese: "nhâm nhi" },
+            { english: "and glances around", vietnamese: "và nhìn quanh" },
+            { english: "The library is packed", vietnamese: "Thư viện đông đúc" },
+            { english: "but the quiet focus in the air", vietnamese: "nhưng không khí yên tĩnh đầy tập trung" },
+            { english: "feels comforting", vietnamese: "khiến cậu cảm thấy dễ chịu" },
+            { english: "He thinks of Ms. Lan", vietnamese: "Cậu nghĩ về cô Lan" },
+            { english: "his own hard work", vietnamese: "về nỗ lực của bản thân" },
+            { english: "and the book Linh was holding", vietnamese: "và về cuốn sách Linh đang cầm" },
+            { english: "maybe he will pick up something fun to read", vietnamese: "có lẽ cậu sẽ tìm một cuốn sách thú vị để đọc" },
+            { english: "after exams", vietnamese: "sau khi thi xong" },
+            { english: "For Nam", vietnamese: "Với Nam" },
+            { english: "every day is a chance", vietnamese: "mỗi ngày là một cơ hội" },
+            { english: "to learn and grow", vietnamese: "để học hỏi và phát triển" },
+            { english: "and he knows", vietnamese: "và cậu biết" },
+            { english: "that with effort", vietnamese: "rằng chỉ cần cố gắng" },
+            { english: "anything is possible", vietnamese: "mọi thứ đều có thể đạt được" }
+        ];
+
+        // Biến trạng thái
+        let state = {
+            phrases: phrases, // Không xáo trộn
+            currentIndex: 0,
+            completedCount: 0,
+            isPlaying: false,
+            autoPlayInterval: null,
+            wrongAttempts: 0
+        };
+
+        // Hàm chuẩn hóa chuỗi cho so sánh
+        function normalizeString(str) {
+            if (typeof str !== 'string') {
+                console.warn('Invalid input to normalizeString:', str);
+                return '';
+            }
+            return str
+                .replace(/\s+/g, ' ') // Thay nhiều khoảng trắng bằng một
+                .replace(/[.,!?\–-]/g, '') // Bỏ dấu câu
+                .replace(/[^a-zA-Z0-9\s]/g, '') // Bỏ ký tự đặc biệt khác
+                .trim()
+                .toLowerCase();
+        }
+
+        // Hàm làm sạch chuỗi cho SpeechSynthesisUtterance
+        function sanitizeString(str) {
+            if (typeof str !== 'string') {
+                console.warn('Invalid input to sanitizeString:', str);
+                return '';
+            }
+            return str
+                .replace(/\s+/g, ' ') // Thay nhiều khoảng trắng bằng một
+                .replace(/['"]/g, ' ') // Bỏ dấu nháy đơn và nháy kép
+                .replace(/[^a-zA-Z0-9.,!?\s-]/g, '') // Chỉ giữ chữ cái, số, và dấu câu cơ bản
+                .trim();
+        }
+
+        // Hàm tạo pháo hoa
+        function createFirework() {
+            const input = document.getElementById('userInput');
+            const gameContainer = document.getElementById('game-container');
+            if (!input || !gameContainer) return;
+            const inputRect = input.getBoundingClientRect();
+            const containerRect = gameContainer.getBoundingClientRect();
+            const x = inputRect.left - containerRect.left + inputRect.width / 2;
+            const y = inputRect.top - containerRect.top + inputRect.height / 2;
+
+            for (let i = 0; i < 100; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const angle = Math.random() * 2 * Math.PI;
+                const distance = Math.random() * 150 + 50;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                particle.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.setProperty('--tx', `${tx}px`);
+                particle.style.setProperty('--ty', `${ty}px`);
+                particle.style.animation = `firework ${Math.random() * 0.5 + 0.5}s linear forwards`;
+                gameContainer.appendChild(particle);
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        // Hàm tạo pháo hoa khi hoàn thành
+        function createCelebrationFireworks() {
+            const gameContainer = document.getElementById('game-container');
+            if (!gameContainer) return;
+            const containerRect = gameContainer.getBoundingClientRect();
+            const containerWidth = containerRect.width;
+            const containerHeight = containerRect.height;
+
+            for (let j = 0; j < 10; j++) {
+                setTimeout(() => {
+                    for (let i = 0; i < 20; i++) {
+                        const particle = document.createElement('div');
+                        particle.className = 'particle';
+                        const x = Math.random() * containerWidth;
+                        const y = Math.random() * containerHeight;
+                        const angle = Math.random() * 2 * Math.PI;
+                        const distance = Math.random() * 150 + 50;
+                        const tx = Math.cos(angle) * distance;
+                        const ty = Math.sin(angle) * distance;
+                        particle.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+                        particle.style.left = `${x}px`;
+                        particle.style.top = `${y}px`;
+                        particle.style.setProperty('--tx', `${tx}px`);
+                        particle.style.setProperty('--ty', `${ty}px`);
+                        particle.style.animation = `firework ${Math.random() * 0.5 + 0.5}s linear forwards`;
+                        gameContainer.appendChild(particle);
+                        setTimeout(() => particle.remove(), 1000);
+                    }
+                }, j * 200);
+            }
+        }
+
+        // Hàm phát cụm từ
+        function playPhrase() {
+            if (state.isPlaying) return;
+            state.isPlaying = true;
+            try {
+                const rawText = state.phrases[state.currentIndex].english;
+                const sanitizedText = sanitizeString(rawText);
+                if (!sanitizedText) {
+                    console.warn(`Empty text after sanitization for phrase ${state.currentIndex + 1}: "${rawText}"`);
+                    state.isPlaying = false;
+                    moveToNextPhrase();
+                    return;
+                }
+                console.log(`Playing phrase ${state.currentIndex + 1}/${state.phrases.length}: "${rawText}" (sanitized: "${sanitizedText}")`);
+                const utterance = new SpeechSynthesisUtterance(sanitizedText);
+                utterance.lang = 'en-US';
+                utterance.onend = () => {
+                    state.isPlaying = false;
+                };
+                utterance.onerror = (event) => {
+                    console.error(`SpeechSynthesisUtterance error at phrase ${state.currentIndex + 1}: "${rawText}"`, event);
+                    state.isPlaying = false;
+                    moveToNextPhrase();
+                };
+                speechSynthesis.speak(utterance);
+            } catch (error) {
+                console.error(`Error in SpeechSynthesisUtterance at phrase ${state.currentIndex + 1}: "${state.phrases[state.currentIndex].english}"`, error);
+                state.isPlaying = false;
+                moveToNextPhrase();
+            }
+        }
+
+        // Hàm tự động phát
+        function startAutoPlay() {
+            if (state.autoPlayInterval) clearInterval(state.autoPlayInterval);
+            state.autoPlayInterval = setInterval(() => {
+                if (!state.isPlaying) {
+                    playPhrase();
+                }
+            }, 3000);
+        }
+
+        // Hàm dừng tự động phát
+        function stopAutoPlay() {
+            if (state.autoPlayInterval) {
+                clearInterval(state.autoPlayInterval);
+                state.autoPlayInterval = null;
+            }
+        }
+
+        // Hàm chuyển cụm từ
+        function moveToNextPhrase() {
+            state.currentIndex++;
+            if (state.currentIndex >= state.phrases.length) {
+                renderCompletionScreen();
+            } else {
+                const userInput = document.getElementById('userInput');
+                const hint = document.getElementById('hint');
+                const result = document.getElementById('result');
+                const completion = document.getElementById('completion');
+                if (userInput) userInput.value = '';
+                if (hint) hint.textContent = '';
+                if (result) result.textContent = '';
+                if (completion) completion.textContent = `Completed: ${state.completedCount}/66`;
+                playPhrase();
+                startAutoPlay();
+            }
+        }
+
+        // Hàm kiểm tra câu trả lời
+        function checkAnswer() {
+            const userInput = document.getElementById('userInput').value;
+            const result = document.getElementById('result');
+            const normalizedInput = normalizeString(userInput);
+            const normalizedCorrect = normalizeString(state.phrases[state.currentIndex].english);
+
+            console.log(`Comparing: Input="${normalizedInput}", Correct="${normalizedCorrect}"`);
+            if (normalizedInput === normalizedCorrect) {
+                stopAutoPlay();
+                result.textContent = "Correct!";
+                result.style.color = "green";
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(createFirework, i * 200);
+                }
+                state.wrongAttempts = 0;
+                state.completedCount++;
+                setTimeout(moveToNextPhrase, 2000);
+            } else {
+                state.wrongAttempts++;
+                result.textContent = `Incorrect, try again! (${3 - state.wrongAttempts} attempts left)`;
+                result.style.color = "red";
+                if (state.wrongAttempts >= 3) {
+                    stopAutoPlay();
+                    state.wrongAttempts = 0;
+                    result.textContent = "Moving to next phrase...";
+                    setTimeout(moveToNextPhrase, 1000);
+                }
+            }
+        }
+
+        // Hàm hiển thị gợi ý
+        function showHint() {
+            const english = state.phrases[state.currentIndex].english;
+            const vietnamese = state.phrases[state.currentIndex].vietnamese;
+            document.getElementById('hint').textContent = `Hint: ${english} (${vietnamese})`;
+        }
+
+        // Hàm xóa gợi ý
+        function clearHint() {
+            const hint = document.getElementById('hint');
+            if (hint) hint.textContent = '';
+        }
+
+        // Hàm render giao diện bắt đầu
+        function renderStartScreen() {
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = `
+                <h1>Spelling Game: Nam's Daily Journey</h1>
+                <p>Click Start to begin the story!</p>
+                <button id="startButton">Start</button>
+            `;
+            document.getElementById('startButton').addEventListener('click', startGame);
+        }
+
+        // Hàm render giao diện game
+        function renderGameScreen() {
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = `
+                <h1>Spelling Game: Nam's Daily Journey</h1>
+                <p>Listen and type the phrase you hear:</p>
+                <input type="text" id="userInput" placeholder="Type the phrase here">
+                <br>
+                <button id="playButton">Play Phrase</button>
+                <button id="checkButton">Check Answer</button>
+                <button id="hintButton">Hint</button>
+                <button id="resetButton">Reset Game</button>
+                <p id="completion">Completed: 0/66</p>
+                <p id="hint"></p>
+                <p id="result"></p>
+            `;
+            document.getElementById('playButton').addEventListener('click', playPhrase);
+            document.getElementById('checkButton').addEventListener('click', checkAnswer);
+            document.getElementById('hintButton').addEventListener('click', showHint);
+            document.getElementById('resetButton').addEventListener('click', resetGame);
+            document.getElementById('userInput').addEventListener('focus', clearHint);
+            document.getElementById('userInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkAnswer();
+            });
+            document.getElementById('hint').addEventListener('copy', (e) => e.preventDefault());
+        }
+
+        // Hàm render giao diện hoàn thành
+        function renderCompletionScreen() {
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = `
+                <h1>Congratulations! You have completed ${state.completedCount} phrases!</h1>
+                <button id="resetButton">Play Again</button>
+            `;
+            document.getElementById('resetButton').addEventListener('click', resetGame);
+            createCelebrationFireworks();
+        }
+
+        // Hàm bắt đầu game
+        function startGame() {
+            state.phrases = phrases; // Không xáo trộn
+            state.currentIndex = 0;
+            state.completedCount = 0;
+            state.wrongAttempts = 0;
+            state.isPlaying = false;
+            stopAutoPlay();
+            renderGameScreen();
+            playPhrase();
+            startAutoPlay();
+        }
+
+        // Hàm reset game
+        function resetGame() {
+            stopAutoPlay();
+            state.phrases = phrases; // Không xáo trộn
+            state.currentIndex = 0;
+            state.completedCount = 0;
+            state.wrongAttempts = 0;
+            state.isPlaying = false;
+            renderStartScreen();
+        }
+
+        // Khởi tạo
+        renderStartScreen();
+    </script>
+</body>
+</html>
